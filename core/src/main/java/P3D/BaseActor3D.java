@@ -14,7 +14,16 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Matrix4;
 
+import com.badlogic.gdx.math.collision.BoundingBox;
+import com.badlogic.gdx.math.Polygon;
+import com.badlogic.gdx.math.Intersector;
+import com.badlogic.gdx.math.Intersector.MinimumTranslationVector;
+
+import java.util.ArrayList;
+
 public class BaseActor3D {
+
+    private Polygon boundingPolygon;
 
     private ModelInstance modelData;
     private final Vector3 position;
@@ -32,7 +41,100 @@ public class BaseActor3D {
         s.addActor(this);
     }
 
-    public void setModelData(ModelInstance m) {
+    public void setBaseRectangle() {
+
+        BoundingBox modelBounds = modelData.calculateBoundingBox( new BoundingBox() );
+        Vector3 max = modelBounds.max;
+        Vector3 min = modelBounds.min;
+        float[] vertices =
+                {max.x, max.z, min.x, max.z, min.x, min.z, max.x, min.z};
+        boundingPolygon = new Polygon(vertices);
+        boundingPolygon.setOrigin(0,0);
+    }
+
+    public void setBasePolygon() {
+
+        BoundingBox modelBounds = modelData.calculateBoundingBox( new BoundingBox() );
+        Vector3 max = modelBounds.max;
+        Vector3 min = modelBounds.min;
+
+        float a = 0.75f; // offset amount
+        float[] vertices =
+                {max.x,0, a*max.x,a*max.z, 0,max.z, a*min.x,a*max.z,
+                min.x,0, a*min.x,a*min.z, 0,min.z, a*max.x,a*min.z };
+        boundingPolygon = new Polygon(vertices);
+        boundingPolygon.setOrigin(0,0);
+    }
+
+    public Polygon getBoundaryPolygon() {
+
+        boundingPolygon.setPosition( position.x, position.z );
+        boundingPolygon.setRotation( getTurnAngle() );
+        boundingPolygon.setScale( scale.x, scale.z );
+        return boundingPolygon;
+    }
+
+    public boolean overlaps(BaseActor3D other) {
+
+        Polygon poly1 = this.getBoundaryPolygon();
+        Polygon poly2 = other.getBoundaryPolygon();
+
+        if ( !poly1.getBoundingRectangle().overlaps(poly2.getBoundingRectangle()) )
+            return false;
+
+        MinimumTranslationVector mtv = new MinimumTranslationVector();
+
+        return Intersector.overlapConvexPolygons(poly1,poly2, mtv);
+    }
+
+    public void preventOverlap(BaseActor3D other) {
+
+        Polygon poly1 = this.getBoundaryPolygon();
+        Polygon poly2 = other.getBoundaryPolygon();
+
+        // initial test to improve performance
+        if ( !poly1.getBoundingRectangle().overlaps(poly2.getBoundingRectangle()) )
+            return;
+
+        MinimumTranslationVector mtv = new MinimumTranslationVector();
+        boolean polygonOverlap = Intersector.overlapConvexPolygons(poly1, poly2, mtv);
+
+        if ( polygonOverlap )
+            this.moveBy( mtv.normal.x * mtv.depth, 0, mtv.normal.y * mtv.depth );
+    }
+
+    public static ArrayList<BaseActor3D> getList(Stage3D stage, String className) {
+
+        ArrayList<BaseActor3D> list = new ArrayList<BaseActor3D>();
+
+        Class theClass = null;
+        try {
+
+            theClass = Class.forName(className); }
+        catch (Exception error) {
+
+            error.printStackTrace();
+        }
+
+        for (BaseActor3D ba3d : stage.getActors()) {
+
+            if ( theClass.isInstance( ba3d ))
+                list.add(ba3d);
+        }
+        return list;
+    }
+
+    public static int count(Stage3D stage, String className){
+
+        return getList(stage, className).size();
+    }
+
+    public void remove() {
+
+        stage.removeActor(this);
+    }
+
+    public void setModelInstance(ModelInstance m) {
         this.modelData = m;
     }
 
