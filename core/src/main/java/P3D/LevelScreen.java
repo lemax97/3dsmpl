@@ -62,5 +62,30 @@ public class LevelScreen extends BaseScreen {
     @Override
     public void update(float dt) {
 
+        float speed = 3.0f;
+        float rotateSpeed = 45.0f;
+
+        if (Gdx.input.isKeyPressed(Keys.UP))
+            turtle.moveForward( speed * dt );
+        if (Gdx.input.isKeyPressed(Keys.LEFT))
+            turtle.turn( -rotateSpeed * dt );
+        if (Gdx.input.isKeyPressed(Keys.RIGHT))
+            turtle.turn( rotateSpeed * dt );
+
+        mainStage3D.setCameraDirection( turtle.getPosition() );
+
+        for ( BaseActor3D rock : BaseActor3D.getList( mainStage3D, "P3D.Rock"))
+            turtle.preventOverlap(rock);
+
+        for ( BaseActor3D starfish : BaseActor3D.getList( mainStage3D, "P3D.Starfish"))
+            if (turtle.overlaps(starfish))
+                starfish.remove();
+
+        int starfishCount = BaseActor3D.count(mainStage3D, "P3D.Starfish");
+        starfishLabel.setText( "Starfish left: " + starfishCount);
+
+        if (starfishCount == 0)
+            messageLabel.setVisible(true);
+
     }
 }
